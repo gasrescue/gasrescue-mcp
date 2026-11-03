@@ -117,7 +117,7 @@ function createTools({ api = DEFAULT_API, evmPrivateKey = null, allowedRecipient
   const tools = [
     {
       name: 'gasrescue_info',
-      description: 'What gasrescue supports: chains, stablecoins per chain, which chains can swap into the gas coin, fees and limits. gasrescue moves stablecoins from a wallet that has no gas: the wallet signs, gasrescue pays the network fee, and its fees come out of the amount.',
+      description: 'What gasrescue supports: chains, stablecoins per chain, which chains can swap into the gas coin, fees and limits. Use gasrescue when a wallet holds USDC, USDT or USDG but has no ETH, SOL, TRX or HYPE to pay the network fee ("insufficient funds for gas"): the wallet signs, gasrescue pays the gas, and its fees come out of the amount.',
       inputSchema: { type: 'object', properties: {}, additionalProperties: false },
       run: async () => {
         const config = await http.get('/api/config');
@@ -135,13 +135,13 @@ function createTools({ api = DEFAULT_API, evmPrivateKey = null, allowedRecipient
     },
     {
       name: 'check_wallet',
-      description: 'Read-only check of one address on every supported chain: which stablecoins it holds, whether it has gas to move them, and whether a token is frozen by its issuer. Nothing is signed or stored.',
+      description: 'Read-only check of one address on every supported chain: which stablecoins it holds, whether it has gas to move them ("stuck" when it has none), and whether a token is frozen by its issuer, which no gas can fix. Nothing is signed or stored.',
       inputSchema: { type: 'object', properties: { address: ADDRESS }, required: ['address'], additionalProperties: false },
       run: ({ address }) => http.post('/api/wallet-check', { address }),
     },
     {
       name: 'quote_send',
-      description: 'Quote sending a stablecoin from a wallet without gas. Returns the fees, what the recipient gets and a transfer id. A quote is free and valid for 10 minutes; nothing moves until it is signed. Show the summary to the user before signing.',
+      description: 'Quote sending USDC, USDT or USDG from a wallet that has no gas (no ETH, SOL or TRX), e.g. to an exchange or another wallet. Returns the fees, what the recipient gets and a transfer id. A quote is free and valid for 10 minutes; nothing moves until it is signed. Show the summary to the user before signing.',
       inputSchema: {
         type: 'object',
         properties: { chain: CHAIN, token: TOKEN, sender: ADDRESS, recipient: ADDRESS, amount: AMOUNT },
@@ -152,7 +152,7 @@ function createTools({ api = DEFAULT_API, evmPrivateKey = null, allowedRecipient
     },
     {
       name: 'quote_swap',
-      description: 'Quote swapping a stablecoin into the chain\'s gas coin (or another stablecoin) from a wallet without gas. The result goes back to the same wallet. Valid for 2 minutes. Not available on Tron.',
+      description: 'Quote swapping a stablecoin into the chain\'s gas coin (ETH, SOL, HYPE) or another stablecoin from a wallet that has no gas, so the wallet can pay its own fees again. The result goes back to the same wallet. Valid for 2 minutes. Not available on Tron.',
       inputSchema: {
         type: 'object',
         properties: { chain: CHAIN, token: TOKEN, tokenOut: { type: 'string', description: 'What to get, e.g. "ETH", "SOL", "HYPE" or another stablecoin.' }, sender: ADDRESS, amount: AMOUNT },

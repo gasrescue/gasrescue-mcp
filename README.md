@@ -1,7 +1,11 @@
 # gasrescue MCP server
 
-Lets an AI agent move stablecoins out of a wallet that has no gas, through [gasrescue.io](https://gasrescue.io).
-The wallet signs, gasrescue sends the transaction and pays the network fee, and its fees come out of the amount.
+Gasless USDC, USDT and USDG transfers and swaps from existing wallets, for AI agents, through
+[gasrescue.io](https://gasrescue.io).
+
+The wallet holds stablecoins but no ETH, SOL, TRX or HYPE, so every transfer fails with "insufficient funds
+for gas". With this server an agent can still send the stablecoins, or swap a few dollars into the gas coin:
+the wallet signs, gasrescue sends the transaction and pays the network fee, and its fees come out of the amount.
 
 Chains: Base, Arbitrum, Ethereum, HyperEVM, Robinhood Chain, Solana, Tron.
 Tokens: USDC, USDT (USDT0), USDG, depending on the chain.

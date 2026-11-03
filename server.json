@@ -2,18 +2,18 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.gasrescue/gasrescue",
   "title": "gasrescue",
-  "description": "Send or swap USDC, USDT and USDG from a wallet without gas, on 7 chains.",
+  "description": "Gasless USDC, USDT and USDG transfers and swaps from existing wallets across 7 blockchains.",
   "websiteUrl": "https://gasrescue.io/agents",
   "repository": {
     "url": "https://github.com/gasrescue/gasrescue-mcp",
     "source": "github"
   },
-  "version": "0.1.3",
+  "version": "0.1.4",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "gasrescue-mcp",
-      "version": "0.1.3",
+      "version": "0.1.4",
       "transport": {
         "type": "stdio"
       },
