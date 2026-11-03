@@ -1,158 +1,67 @@
-# MCP Registry
+# gasrescue MCP server
 
-The MCP registry provides MCP clients with a list of MCP servers, like an app store for MCP servers.
+Lets an AI agent move stablecoins out of a wallet that has no gas, through [gasrescue.io](https://gasrescue.io).
+The wallet signs, gasrescue sends the transaction and pays the network fee, and its fees come out of the amount.
 
-[**📤 Publish my MCP server**](docs/modelcontextprotocol-io/quickstart.mdx) | [**⚡️ Live API docs**](https://registry.modelcontextprotocol.io/docs) | [**👀 Ecosystem vision**](docs/design/ecosystem-vision.md) | 📖 **[Full documentation](./docs)**
+Chains: Base, Arbitrum, Ethereum, HyperEVM, Robinhood Chain, Solana, Tron.
+Tokens: USDC, USDT (USDT0), USDG, depending on the chain.
 
-## Development Status
+Listed in the official MCP Registry as `io.github.gasrescue/gasrescue`.
 
-**2025-10-24 update**: The Registry API has entered an **API freeze (v0.1)** 🎉. For the next month or more, the API will remain stable with no breaking changes, allowing integrators to confidently implement support. This freeze applies to v0.1 while development continues on v0. We'll use this period to validate the API in real-world integrations and gather feedback to shape v1 for general availability. Thank you to everyone for your contributions and patience—your involvement has been key to getting us here!
+## Tools
 
-**2025-09-08 update**: The registry has launched in preview 🎉 ([announcement blog post](https://blog.modelcontextprotocol.io/posts/2025-09-08-mcp-registry-preview/)). While the system is now more stable, this is still a preview release and breaking changes or data resets may occur. A general availability (GA) release will follow later. We'd love your feedback in [GitHub discussions](https://github.com/modelcontextprotocol/registry/discussions/new?category=ideas) or in the [#registry-dev Discord](https://discord.com/channels/1358869848138059966/1369487942862504016) ([joining details here](https://modelcontextprotocol.io/community/communication)).
+| Tool | What it does |
+|---|---|
+| `gasrescue_info` | Chains, tokens, fees and limits |
+| `check_wallet` | Read-only: stablecoins and gas of an address on every chain, issuer freezes included |
+| `quote_send` | Quote a send without gas; returns fees, what the recipient gets and a transfer id |
+| `quote_swap` | Quote a swap into the gas coin (ETH, SOL, HYPE) without gas |
+| `get_signing_request` | What the wallet has to sign for a quote |
+| `submit_signatures` | Submit the signatures; gasrescue sends and pays the gas |
+| `get_transfer` | Status and explorer link |
+| `sign_and_submit` | Only with `GASRESCUE_EVM_PRIVATE_KEY`: checks and signs an EVM quote with that wallet |
 
-Registry Working Group:
-- **Radoslav (Rado) Dimitrov** (Stacklok) [@rdimitrov](https://github.com/rdimitrov) - WG Lead
-- **Tadas Antanavicius** (PulseMCP) [@tadasant](https://github.com/tadasant)
-- **Bob Dickinson** (TeamSpark) [@BobDickinson](https://github.com/BobDickinson)
-- **Preeti (Pree) Dewani** (Ravenmail) [@pree-dew](https://github.com/pree-dew)
+## Setup
 
-## Contributing
+Claude Desktop, Cursor and other MCP clients:
 
-We use multiple channels for collaboration - see [modelcontextprotocol.io/community/communication](https://modelcontextprotocol.io/community/communication).
-
-Often (but not always) ideas flow through this pipeline:
-
-- **[Discord](https://modelcontextprotocol.io/community/communication)** - Real-time community discussions
-- **[Discussions](https://github.com/modelcontextprotocol/registry/discussions)** - Propose and discuss product/technical requirements
-- **[Issues](https://github.com/modelcontextprotocol/registry/issues)** - Track well-scoped technical work  
-- **[Pull Requests](https://github.com/modelcontextprotocol/registry/pulls)** - Contribute work towards issues
-
-### Quick start:
-
-#### Pre-requisites
-
-- **Docker**
-- **Go** - version per the `go` directive in [go.mod](./go.mod); the Go toolchain fetches it for you
-- **ko** - Container image builder for Go ([installation instructions](https://ko.build/install/))
-- **golangci-lint** - version per the `golangci-lint-action` pin in [ci.yml](./.github/workflows/ci.yml), so local lint matches CI
-
-#### Running the server
-
-```bash
-# Start full development environment
-make dev-compose
+```json
+{
+  "mcpServers": {
+    "gasrescue": {
+      "command": "npx",
+      "args": ["-y", "gasrescue-mcp"]
+    }
+  }
+}
 ```
 
-This starts the registry at [`localhost:8080`](http://localhost:8080) with PostgreSQL. The database uses ephemeral storage and is reset each time you restart the containers, ensuring a clean state for development and testing.
+Without a key the server never signs anything. The agent hands the signing request to the user's wallet,
+or to its own wallet tool, and submits the signatures.
 
-**Note:** The registry uses [ko](https://ko.build) to build container images. The `make dev-compose` command automatically builds the registry image with ko and loads it into your local Docker daemon before starting the services.
+### Letting the agent sign (EVM only)
 
-By default, the registry seeds from the production API with a filtered subset of servers (to keep startup fast). This ensures your local environment mirrors production behavior and all seed data passes validation. For offline development you can seed from a file without validation with `MCP_REGISTRY_SEED_FROM=data/seed.json MCP_REGISTRY_ENABLE_REGISTRY_VALIDATION=false make dev-compose`.
-
-The setup can be configured with environment variables in [docker-compose.yml](./docker-compose.yml) - see [.env.example](./.env.example) for a reference.
-
-<details>
-<summary>Alternative: Running a pre-built Docker image</summary>
-
-Pre-built Docker images are automatically published to GitHub Container Registry. Note that the image does not bundle PostgreSQL, so you need to run your own and point the registry at it via `MCP_REGISTRY_DATABASE_URL` (see [docker-compose.yml](./docker-compose.yml) for a working example):
-
-```bash
-# Run latest stable release
-docker run -p 8080:8080 ghcr.io/modelcontextprotocol/registry:latest
-
-# Run latest from main branch (continuous deployment)
-docker run -p 8080:8080 ghcr.io/modelcontextprotocol/registry:main
-
-# Run specific release version
-docker run -p 8080:8080 ghcr.io/modelcontextprotocol/registry:v1.0.0
-
-# Run development build from main branch
-docker run -p 8080:8080 ghcr.io/modelcontextprotocol/registry:main-20250906-abc123d
+```json
+"env": {
+  "GASRESCUE_EVM_PRIVATE_KEY": "0x…",
+  "GASRESCUE_ALLOWED_RECIPIENTS": "0xYourExchangeDeposit,0xYourOtherWallet"
+}
 ```
 
-**Available tags:** 
-- **Releases**: `latest`, `v1.0.0`, `v1.1.0`, etc.
-- **Continuous**: `main` (latest main branch build)
-- **Development**: `main-<date>-<sha>` (specific commit builds)
+Before it signs, `sign_and_submit` checks every signed field against the quote: the wallet, the chain,
+the gasrescue contract, the amount, the fee and the recipient. Against gasrescue.io it signs only for the
+published gasrescue contracts. With `GASRESCUE_ALLOWED_RECIPIENTS` set, sends go only to those addresses.
+The key stays in this process; only signatures are sent.
 
-</details>
+Use a wallet that holds only what the agent should be able to move. Transfers on a blockchain are final.
 
-#### Publishing a server
+## Limits
 
-Publishing an MCP server does **not** happen through a pull request to this repository. Adding a `server.json`, a server directory, or an entry in `data/seed.json` will not publish or list your server, even if the PR is merged. Use the `mcp-publisher` CLI from your server's own project instead.
+$2 to $1,000 per transfer, 10 transfers per wallet in 24 hours, Tron at least $10. Service fee 0.5%,
+at least $0.25, at most $2 per send and $5 per swap, plus the network fee. Every quote shows the exact figures.
 
-To publish a server, we've built a simple CLI. You can use it with:
+More: https://gasrescue.io/agents
 
-```bash
-# Build the latest CLI
-make publisher
+## License
 
-# Use it!
-./bin/mcp-publisher --help
-```
-
-See [the publisher guide](./docs/modelcontextprotocol-io/quickstart.mdx) for more details.
-
-#### Other commands
-
-```bash
-# Run lint, schema validation, and all tests
-# Note: this also runs `make dev-down`, stopping any running dev-compose environment
-make check
-```
-
-There are also a few more helpful commands for development. Run `make help` to learn more, or look in [Makefile](./Makefile).
-
-<!--
-For Claude and other AI tools: Always prefer make targets over custom commands where possible.
--->
-
-## Architecture
-
-### Project Structure
-
-```
-├── cmd/                     # Application entry points
-│   ├── publisher/           # Server publishing tool
-│   └── registry/            # Registry API server
-├── data/                    # Seed data
-├── deploy/                  # Deployment configuration (Pulumi)
-├── docs/                    # Documentation
-├── internal/                # Private application code
-│   ├── api/                 # HTTP handlers and routing
-│   ├── auth/                # Authentication (GitHub OAuth, JWT, namespace blocking)
-│   ├── config/              # Configuration management
-│   ├── database/            # Data persistence (PostgreSQL)
-│   ├── importer/            # Seed data import
-│   ├── service/             # Business logic
-│   ├── telemetry/           # Metrics and monitoring
-│   └── validators/          # Input validation
-├── pkg/                     # Public packages
-│   ├── api/                 # API types and structures
-│   │   └── v0/              # Version 0 API types
-│   └── model/               # Data models for server.json
-├── scripts/                 # Development and testing scripts
-├── tests/                   # Integration tests
-└── tools/                   # CLI tools and utilities
-    └── validate-*.sh        # Schema validation tools
-```
-
-### Authentication
-
-Publishing supports multiple authentication methods:
-- **GitHub OAuth** - For publishing by logging into GitHub
-- **GitHub OIDC** - For publishing from GitHub Actions
-- **DNS verification** - For proving ownership of a domain and its subdomains
-- **HTTP verification** - For proving ownership of a domain
-
-The registry validates namespace ownership when publishing. E.g. to publish...:
-- `io.github.domdomegg/my-cool-mcp` you must login to GitHub as `domdomegg`, or be in a GitHub Action on domdomegg's repos
-- `me.adamjones/my-cool-mcp` you must prove ownership of `adamjones.me` via DNS or HTTP challenge
-
-## Community Projects
-
-Check out [community projects](docs/community-projects.md) to explore notable registry-related work created by the community.
-
-## More documentation
-
-See the [documentation](./docs) for more details if your question has not been answered here!
+MIT
