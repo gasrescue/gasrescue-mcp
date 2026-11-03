@@ -84,7 +84,7 @@ function verifyEvm({ transfer, request, account, contracts }) {
 }
 
 const ADDRESS = { type: 'string', description: 'Wallet address: 0x… for EVM chains, base58 for Solana, T… for Tron.' };
-const ID = { type: 'string', description: 'The transfer id from a quote.' };
+const ID = { type: 'string', pattern: '^[0-9a-f]{24}$', description: 'The transfer id returned by quote_send or quote_swap (24 hex characters).' };
 const AMOUNT = { type: 'string', description: 'Amount of the token, as a decimal string, e.g. "25" or "12.5". Fees come out of it.' };
 const CHAIN = { type: 'string', description: 'Chain key from gasrescue_info, e.g. "base", "arbitrum", "ethereum", "hyperevm", "robinhood", "solana", "tron".' };
 const TOKEN = { type: 'string', description: 'Stablecoin symbol, e.g. "USDC", "USDT", "USDT0" or "USDG". gasrescue_info lists what each chain supports.' };
@@ -114,10 +114,20 @@ function createTools({ api = DEFAULT_API, evmPrivateKey = null, allowedRecipient
     return transfer;
   };
 
+  // Annotations as defined by MCP: what a client may assume about a tool before calling it.
+  const READS = { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: true };
+  const QUOTES = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: true };
+  const MOVES_FUNDS = { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: true };
+
   const tools = [
     {
       name: 'gasrescue_info',
-      description: 'What gasrescue supports: chains, stablecoins per chain, which chains can swap into the gas coin, fees and limits. Use gasrescue when a wallet holds USDC, USDT or USDG but has no ETH, SOL, TRX or HYPE to pay the network fee ("insufficient funds for gas"): the wallet signs, gasrescue pays the gas, and its fees come out of the amount.',
+      title: 'Supported chains, tokens and fees',
+      annotations: READS,
+      description: 'Lists what gasrescue supports: the chains, the stablecoins on each, which chains can swap into their gas coin, the fees and the limits. '
+        + 'Use gasrescue when a wallet holds USDC, USDT or USDG but no ETH, SOL, TRX or HYPE for the network fee ("insufficient funds for gas"). '
+        + 'Call this first to get the chain keys and token symbols the other tools expect. Read-only, takes no input. '
+        + 'Returns network, fees (service percent, minimum, maximum), limits (USD per transfer, transfers per wallet per day, quote validity) and the chains with their tokens and gas coin.',
       inputSchema: { type: 'object', properties: {}, additionalProperties: false },
       run: async () => {
         const config = await http.get('/api/config');
@@ -135,13 +145,24 @@ function createTools({ api = DEFAULT_API, evmPrivateKey = null, allowedRecipient
     },
     {
       name: 'check_wallet',
-      description: 'Read-only check of one address on every supported chain: which stablecoins it holds, whether it has gas to move them ("stuck" when it has none), and whether a token is frozen by its issuer, which no gas can fix. Nothing is signed or stored.',
+      title: 'Check a wallet for stuck stablecoins',
+      annotations: READS,
+      description: 'Checks one address on every supported chain where it is valid: which stablecoins it holds, its gas balance, whether the stablecoins are stuck (not enough gas to move them) and whether a token is frozen by its issuer. '
+        + 'Use it before quote_send or quote_swap to find the chain and token to rescue. A frozen token cannot be moved by any tool here; only the issuer can lift that. '
+        + 'Read-only: nothing is signed, sent or stored. '
+        + 'Returns { address, chains: [{ key, label, native, tokens: [{ symbol, balance, frozen }], gas, stuck, frozen, canSwap }] }; a chain that did not answer has error: true.',
       inputSchema: { type: 'object', properties: { address: ADDRESS }, required: ['address'], additionalProperties: false },
       run: ({ address }) => http.post('/api/wallet-check', { address }),
     },
     {
       name: 'quote_send',
-      description: 'Quote sending USDC, USDT or USDG from a wallet that has no gas (no ETH, SOL or TRX), e.g. to an exchange or another wallet. Returns the fees, what the recipient gets and a transfer id. A quote is free and valid for 10 minutes; nothing moves until it is signed. Show the summary to the user before signing.',
+      title: 'Quote a send without gas',
+      annotations: QUOTES,
+      description: 'Prices sending USDC, USDT or USDG from a wallet without gas (no ETH, SOL or TRX) to another address, e.g. an exchange deposit or another wallet. '
+        + 'Use quote_swap instead when the user wants gas in the same wallet. '
+        + 'Creates a free quote, valid for 10 minutes; nothing moves on chain until the wallet signs it. '
+        + 'Returns { summary, transfer }: the transfer id, network and service fee, what the recipient gets (net) and status "quoted". Show the summary to the user and get approval before signing. '
+        + 'Fails with a readable error when the amount is outside $2 to $1,000 (Tron: from $10), the wallet holds too little, the token is frozen, or the wallet sent 10 transfers in 24 hours.',
       inputSchema: {
         type: 'object',
         properties: { chain: CHAIN, token: TOKEN, sender: ADDRESS, recipient: ADDRESS, amount: AMOUNT },
@@ -152,10 +173,15 @@ function createTools({ api = DEFAULT_API, evmPrivateKey = null, allowedRecipient
     },
     {
       name: 'quote_swap',
-      description: 'Quote swapping a stablecoin into the chain\'s gas coin (ETH, SOL, HYPE) or another stablecoin from a wallet that has no gas, so the wallet can pay its own fees again. The result goes back to the same wallet. Valid for 2 minutes. Not available on Tron.',
+      title: 'Quote a swap into gas without gas',
+      annotations: QUOTES,
+      description: 'Prices swapping a stablecoin into the chain\'s gas coin (ETH, SOL, HYPE) or another stablecoin, for a wallet without gas, so it can pay its own fees again. '
+        + 'The result always goes back to the same wallet; use quote_send to pay someone else. Not available on Tron. '
+        + 'Creates a free quote, valid for 2 minutes because prices move; nothing moves on chain until the wallet signs it. '
+        + 'Returns { summary, transfer } with the transfer id, fees, the expected output and the minimum output (below it the swap reverts and nothing moves). Show the summary to the user and get approval before signing.',
       inputSchema: {
         type: 'object',
-        properties: { chain: CHAIN, token: TOKEN, tokenOut: { type: 'string', description: 'What to get, e.g. "ETH", "SOL", "HYPE" or another stablecoin.' }, sender: ADDRESS, amount: AMOUNT },
+        properties: { chain: CHAIN, token: TOKEN, tokenOut: { type: 'string', description: 'What to get: the gas coin ("ETH", "SOL", "HYPE") or another stablecoin. gasrescue_info lists what each chain can buy.' }, sender: ADDRESS, amount: AMOUNT },
         required: ['chain', 'token', 'tokenOut', 'sender', 'amount'],
         additionalProperties: false,
       },
@@ -163,16 +189,31 @@ function createTools({ api = DEFAULT_API, evmPrivateKey = null, allowedRecipient
     },
     {
       name: 'get_signing_request',
-      description: 'What the wallet has to sign for a quote. EVM: EIP-712 typed data per step (sign each with eth_signTypedData_v4, in order). Tron: transactions whose txID the wallet signs. Solana: a base64 transaction the wallet signs. Then call submit_signatures.',
+      title: 'Get what the wallet must sign',
+      annotations: READS,
+      description: 'Returns what the sender\'s wallet has to sign for a quote from quote_send or quote_swap. '
+        + 'kind "evm-typed-data": sign every steps[].typedData with eth_signTypedData_v4, in order; binding is the order the authorization commits to, so recipient, fee and minimum can be checked first. '
+        + 'kind "tron-transactions": sign every steps[].transaction (first the fee, then the transfer). '
+        + 'kind "solana-transaction" or "solana-versioned-transaction": sign the base64 transaction. '
+        + 'Read-only. Pass the result to submit_signatures. Fails when the quote expired; then request a new quote.',
       inputSchema: { type: 'object', properties: { transferId: ID }, required: ['transferId'], additionalProperties: false },
       run: ({ transferId }) => http.get(`/api/transfers/${transferId}/sign`),
     },
     {
       name: 'submit_signatures',
-      description: 'Submit the signatures for a quote. gasrescue sends the transaction, pays the gas and returns the result with an explorer link. EVM and Tron: signatures, one per step. Solana: signedTransaction, base64.',
+      title: 'Submit signatures and send',
+      annotations: MOVES_FUNDS,
+      description: 'Submits the wallet\'s signatures for a quote; gasrescue broadcasts the transaction, pays the gas and waits up to 3 minutes for the result. '
+        + 'This moves funds and cannot be undone: call it only after the user approved the quote summary. A transfer can be submitted once; a second call is refused. '
+        + 'Give signatures for EVM and Tron, or signedTransaction for Solana. '
+        + 'Returns { summary, transfer } with status confirmed or failed, the transaction hash and the explorer link.',
       inputSchema: {
         type: 'object',
-        properties: { transferId: ID, signatures: { type: 'array', items: { type: 'string' } }, signedTransaction: { type: 'string' } },
+        properties: {
+          transferId: ID,
+          signatures: { type: 'array', items: { type: 'string' }, description: 'EVM and Tron: one signature per step of get_signing_request, in the same order, as hex strings.' },
+          signedTransaction: { type: 'string', description: 'Solana only: the transaction from get_signing_request, signed by the sender, base64.' },
+        },
         required: ['transferId'],
         additionalProperties: false,
       },
@@ -184,7 +225,10 @@ function createTools({ api = DEFAULT_API, evmPrivateKey = null, allowedRecipient
     },
     {
       name: 'get_transfer',
-      description: 'Status of a quote or transfer: quoted, submitting, sent, confirmed, failed or expired, with the explorer link once sent.',
+      title: 'Transfer status',
+      annotations: READS,
+      description: 'Returns the current state of a quote or transfer by its id: quoted, submitting, sent, confirmed, failed or expired, with the fees, the transaction hash and the explorer link once sent. '
+        + 'Use it to follow up after submit_signatures or to see whether a quote is still open. Read-only. Returns { summary, transfer }.',
       inputSchema: { type: 'object', properties: { transferId: ID }, required: ['transferId'], additionalProperties: false },
       run: async ({ transferId }) => withSummary(await http.get(`/api/transfers/${transferId}`)),
     },
@@ -193,7 +237,12 @@ function createTools({ api = DEFAULT_API, evmPrivateKey = null, allowedRecipient
   if (signer) {
     tools.push({
       name: 'sign_and_submit',
-      description: `Sign an EVM quote with this server's own wallet ${signer.address} and submit it. Every field is checked against the quote first: wallet, chain, gasrescue contract, amount, fee and recipient. Get the user's approval of the quote summary before calling this; transfers are final.${allowed.length ? ' Sends go only to the configured allowed recipients.' : ''}`,
+      title: 'Sign with this server\'s wallet and send',
+      annotations: MOVES_FUNDS,
+      description: `Signs an EVM quote with this server's own wallet ${signer.address} and submits it, instead of get_signing_request plus submit_signatures. `
+        + 'Before signing it checks every field against the quote: wallet, chain, gasrescue contract, amount, fee and recipient, and refuses anything else. '
+        + `This moves funds and cannot be undone: get the user's approval of the quote summary first.${allowed.length ? ' Sends go only to the configured allowed recipients.' : ''} `
+        + 'Returns { summary, transfer } with status confirmed or failed and the explorer link.',
       inputSchema: { type: 'object', properties: { transferId: ID }, required: ['transferId'], additionalProperties: false },
       run: async ({ transferId }) => {
         const transfer = await http.get(`/api/transfers/${transferId}`);

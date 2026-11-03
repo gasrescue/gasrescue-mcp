@@ -33,7 +33,7 @@ async function handle({ method, params = {} }) {
     };
   }
   if (method === 'ping') return {};
-  if (method === 'tools/list') return { tools: tools.map(({ name, description, inputSchema }) => ({ name, description, inputSchema })) };
+  if (method === 'tools/list') return { tools: tools.map(({ name, title, description, inputSchema, annotations }) => ({ name, title, description, inputSchema, annotations: { title, ...annotations } })) };
   if (method === 'tools/call') {
     const tool = byName.get(params.name);
     if (!tool) throw Object.assign(new Error(`Unknown tool ${params.name}`), { code: -32602 });

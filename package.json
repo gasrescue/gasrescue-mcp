@@ -1,6 +1,6 @@
 {
   "name": "gasrescue-mcp",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "MCP server for gasless USDC, USDT and USDG transfers and swaps from existing wallets: send stablecoins with no ETH, SOL or TRX for gas, or swap them into gas, on Base, Arbitrum, Ethereum, HyperEVM, Robinhood Chain, Solana and Tron.",
   "license": "MIT",
   "homepage": "https://gasrescue.io/agents",
