@@ -39,6 +39,9 @@
     "gasrescue-mcp": "server.js"
   },
   "main": "tools.js",
+  "scripts": {
+    "test": "node test.js"
+  },
   "files": [
     "server.js",
     "tools.js",
