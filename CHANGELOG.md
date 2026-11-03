@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.6
+- get_transfer explains every state, when not to use it and the error for unknown ids.
+- The transfer id parameter says where it comes from, its format and gives an example.
+- Smoke test (npm test) and CI on GitHub Actions.
+
 ## 0.1.5
 - Tool titles and MCP annotations (read-only, moves funds) so clients know what a tool does before calling it.
 - Tool descriptions say when to use each tool, what it changes and what it returns.

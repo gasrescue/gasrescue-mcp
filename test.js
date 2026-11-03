@@ -42,6 +42,9 @@ async function main() {
   assert.strictEqual(tools.find((tool) => tool.name === 'submit_signatures').annotations.destructiveHint, true);
   assert.strictEqual(tools.find((tool) => tool.name === 'check_wallet').annotations.readOnlyHint, true);
 
+  const badId = (await call('tools/call', { name: 'get_transfer', arguments: { transferId: 'abc' } })).result;
+  assert.ok(badId.isError && /Transfer not found/.test(badId.content[0].text), 'malformed id is refused before any request');
+
   const unknown = await call('no/such/method');
   assert.strictEqual(unknown.error.code, -32601);
   assert.deepStrictEqual((await call('ping')).result, {});

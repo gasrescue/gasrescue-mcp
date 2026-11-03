@@ -84,7 +84,11 @@ function verifyEvm({ transfer, request, account, contracts }) {
 }
 
 const ADDRESS = { type: 'string', description: 'Wallet address: 0x… for EVM chains, base58 for Solana, T… for Tron.' };
-const ID = { type: 'string', pattern: '^[0-9a-f]{24}$', description: 'The transfer id returned by quote_send or quote_swap (24 hex characters).' };
+const ID = {
+  type: 'string',
+  pattern: '^[0-9a-f]{24}$',
+  description: 'The id gasrescue returned as transfer.id from quote_send or quote_swap: 24 lowercase hex characters, e.g. "b39f46001a5680455091152d". Not a transaction hash and not an id of another service.',
+};
 const AMOUNT = { type: 'string', description: 'Amount of the token, as a decimal string, e.g. "25" or "12.5". Fees come out of it.' };
 const CHAIN = { type: 'string', description: 'Chain key from gasrescue_info, e.g. "base", "arbitrum", "ethereum", "hyperevm", "robinhood", "solana", "tron".' };
 const TOKEN = { type: 'string', description: 'Stablecoin symbol, e.g. "USDC", "USDT", "USDT0" or "USDG". gasrescue_info lists what each chain supports.' };
@@ -103,6 +107,11 @@ function createTools({ api = DEFAULT_API, evmPrivateKey = null, allowedRecipient
   };
 
   const withSummary = (transfer) => ({ summary: summary(transfer), transfer });
+  // The API answers a malformed id with a bare 404; the agent gets the same message as for an unknown one.
+  const idOf = (transferId) => {
+    if (!/^[0-9a-f]{24}$/.test(String(transferId))) throw new Error('Transfer not found. The id must be the 24 hex characters returned as transfer.id by quote_send or quote_swap.');
+    return transferId;
+  };
 
   const waitForResult = async (id) => {
     const until = Date.now() + POLL_LIMIT_MS;
@@ -197,7 +206,7 @@ function createTools({ api = DEFAULT_API, evmPrivateKey = null, allowedRecipient
         + 'kind "solana-transaction" or "solana-versioned-transaction": sign the base64 transaction. '
         + 'Read-only. Pass the result to submit_signatures. Fails when the quote expired; then request a new quote.',
       inputSchema: { type: 'object', properties: { transferId: ID }, required: ['transferId'], additionalProperties: false },
-      run: ({ transferId }) => http.get(`/api/transfers/${transferId}/sign`),
+      run: async ({ transferId }) => http.get(`/api/transfers/${idOf(transferId)}/sign`),
     },
     {
       name: 'submit_signatures',
@@ -219,7 +228,7 @@ function createTools({ api = DEFAULT_API, evmPrivateKey = null, allowedRecipient
       },
       run: async ({ transferId, signatures, signedTransaction }) => {
         const payload = signedTransaction ? { signedTransaction } : { signatures };
-        await http.post(`/api/transfers/${transferId}/submit`, payload);
+        await http.post(`/api/transfers/${idOf(transferId)}/submit`, payload);
         return withSummary(await waitForResult(transferId));
       },
     },
@@ -227,10 +236,12 @@ function createTools({ api = DEFAULT_API, evmPrivateKey = null, allowedRecipient
       name: 'get_transfer',
       title: 'Transfer status',
       annotations: READS,
-      description: 'Returns the current state of a quote or transfer by its id: quoted, submitting, sent, confirmed, failed or expired, with the fees, the transaction hash and the explorer link once sent. '
-        + 'Use it to follow up after submit_signatures or to see whether a quote is still open. Read-only. Returns { summary, transfer }.',
+      description: 'Returns the current state of a quote or transfer by its id, with the fees, the transaction hash and the explorer link once sent. '
+        + 'States: quoted (waiting for the signature), submitting and sent (on its way; ask again after a few seconds), confirmed (done), failed (error says why) and expired (not signed in time; request a new quote). '
+        + 'Use it to follow up after submit_signatures or to see whether a quote is still open. It cannot start, change or cancel anything; use quote_send or quote_swap to start. '
+        + 'Read-only. Returns { summary, transfer }. An unknown or malformed id, or one older than 30 days, fails with "Transfer not found".',
       inputSchema: { type: 'object', properties: { transferId: ID }, required: ['transferId'], additionalProperties: false },
-      run: async ({ transferId }) => withSummary(await http.get(`/api/transfers/${transferId}`)),
+      run: async ({ transferId }) => withSummary(await http.get(`/api/transfers/${idOf(transferId)}`)),
     },
   ];
 
@@ -245,7 +256,7 @@ function createTools({ api = DEFAULT_API, evmPrivateKey = null, allowedRecipient
         + 'Returns { summary, transfer } with status confirmed or failed and the explorer link.',
       inputSchema: { type: 'object', properties: { transferId: ID }, required: ['transferId'], additionalProperties: false },
       run: async ({ transferId }) => {
-        const transfer = await http.get(`/api/transfers/${transferId}`);
+        const transfer = await http.get(`/api/transfers/${idOf(transferId)}`);
         if (allowed.length && !transfer.swap && !allowed.some((address) => same(address, transfer.recipient))) throw new Error('Refused to sign: the recipient is not in GASRESCUE_ALLOWED_RECIPIENTS.');
         const request = await http.get(`/api/transfers/${transferId}/sign`);
         verifyEvm({ transfer: request.transfer, request, account: signer.address, contracts: await trustedContracts() });
