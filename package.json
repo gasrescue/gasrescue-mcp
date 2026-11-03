@@ -1,6 +1,6 @@
 {
   "name": "gasrescue-mcp",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "MCP server for gasrescue.io: AI agents check wallets and send or swap USDC, USDT and USDG without holding gas, on Base, Arbitrum, Ethereum, HyperEVM, Robinhood Chain, Solana and Tron.",
   "license": "MIT",
   "homepage": "https://gasrescue.io/agents",

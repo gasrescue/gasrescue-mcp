@@ -2,7 +2,7 @@
   "manifest_version": "0.3",
   "name": "gasrescue",
   "display_name": "gasrescue",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "Send or swap USDC, USDT and USDG from a wallet without gas, on Base, Arbitrum, Ethereum, HyperEVM, Robinhood Chain, Solana and Tron.",
   "long_description": "The wallet signs, gasrescue.io submits the transaction and pays the network fee, and its fees come out of the amount. Check any wallet for stuck or issuer-frozen stablecoins, quote a send or a swap into the gas coin, and submit the signatures. Optionally the server signs EVM quotes with its own wallet, after checking every signed field against the quote.",
   "author": { "name": "gasrescue", "url": "https://gasrescue.io" },
