@@ -1,0 +1,54 @@
+{
+  "manifest_version": "0.3",
+  "name": "gasrescue",
+  "display_name": "gasrescue",
+  "version": "0.1.2",
+  "description": "Send or swap USDC, USDT and USDG from a wallet without gas, on Base, Arbitrum, Ethereum, HyperEVM, Robinhood Chain, Solana and Tron.",
+  "long_description": "The wallet signs, gasrescue.io submits the transaction and pays the network fee, and its fees come out of the amount. Check any wallet for stuck or issuer-frozen stablecoins, quote a send or a swap into the gas coin, and submit the signatures. Optionally the server signs EVM quotes with its own wallet, after checking every signed field against the quote.",
+  "author": { "name": "gasrescue", "url": "https://gasrescue.io" },
+  "homepage": "https://gasrescue.io/agents",
+  "documentation": "https://gasrescue.io/agents",
+  "license": "MIT",
+  "keywords": ["gasless", "usdc", "usdt", "stablecoin", "swap", "base", "arbitrum", "ethereum", "solana", "tron"],
+  "server": {
+    "type": "node",
+    "entry_point": "server/server.js",
+    "mcp_config": {
+      "command": "node",
+      "args": ["${__dirname}/server/server.js"],
+      "env": {
+        "GASRESCUE_EVM_PRIVATE_KEY": "${user_config.evm_private_key}",
+        "GASRESCUE_ALLOWED_RECIPIENTS": "${user_config.allowed_recipients}"
+      }
+    }
+  },
+  "tools": [
+    { "name": "gasrescue_info", "description": "Chains, tokens, swap options, fees and limits" },
+    { "name": "check_wallet", "description": "Read-only: stablecoins, gas and issuer freezes of an address on every chain" },
+    { "name": "quote_send", "description": "Quote a send without gas" },
+    { "name": "quote_swap", "description": "Quote a swap into the gas coin without gas" },
+    { "name": "get_signing_request", "description": "What the wallet has to sign for a quote" },
+    { "name": "submit_signatures", "description": "Submit the signatures; gasrescue sends and pays the gas" },
+    { "name": "get_transfer", "description": "Status and explorer link" },
+    { "name": "sign_and_submit", "description": "Only with an EVM key: check, sign and submit an EVM quote" }
+  ],
+  "compatibility": {
+    "platforms": ["darwin", "win32", "linux"],
+    "runtimes": { "node": ">=20.0.0" }
+  },
+  "user_config": {
+    "evm_private_key": {
+      "type": "string",
+      "title": "EVM private key (optional)",
+      "description": "Only if the agent should sign EVM quotes itself. Use a wallet that holds only what the agent may move. Leave empty to sign nothing.",
+      "sensitive": true,
+      "required": false
+    },
+    "allowed_recipients": {
+      "type": "string",
+      "title": "Allowed recipients (optional)",
+      "description": "Comma-separated addresses. If set, the server signs sends only to these.",
+      "required": false
+    }
+  }
+}

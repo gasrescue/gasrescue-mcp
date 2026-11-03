@@ -1,0 +1,36 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.gasrescue/gasrescue",
+  "title": "gasrescue",
+  "description": "Send or swap USDC, USDT and USDG from a wallet without gas, on 7 chains.",
+  "websiteUrl": "https://gasrescue.io/agents",
+  "repository": {
+    "url": "https://github.com/gasrescue/gasrescue-mcp",
+    "source": "github"
+  },
+  "version": "0.1.2",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "gasrescue-mcp",
+      "version": "0.1.2",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "GASRESCUE_EVM_PRIVATE_KEY",
+          "description": "Optional: lets sign_and_submit sign EVM quotes with this wallet. Leave unset to sign nothing.",
+          "isRequired": false,
+          "isSecret": true
+        },
+        {
+          "name": "GASRESCUE_ALLOWED_RECIPIENTS",
+          "description": "Optional, comma separated: sign_and_submit sends only to these addresses.",
+          "isRequired": false,
+          "isSecret": false
+        }
+      ]
+    }
+  ]
+}
