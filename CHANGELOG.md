@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.7
+- Polygon: USDC, USDT0 and USDC.e, sends and swaps into POL.
+- Signs permit tokens (a permit plus the order) and token domains that carry the chain id as a salt.
+- sign_and_submit also checks that a swap's signed minimum output matches the quote.
+- Descriptions lead with the rescue case: stablecoins stuck in a wallet without gas.
+
 ## 0.1.6
 - get_transfer explains every state, when not to use it and the error for unknown ids.
 - The transfer id parameter says where it comes from, its format and gives an example.

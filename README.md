@@ -1,14 +1,15 @@
 # gasrescue MCP server
 
-Gasless USDC, USDT and USDG transfers and swaps from existing wallets, for AI agents, through
-[gasrescue.io](https://gasrescue.io).
+Rescues stablecoins from wallets that have no gas, for AI agents, through [gasrescue.io](https://gasrescue.io).
+EVM chains, Solana and Tron in one server, no API key and no account.
 
-The wallet holds stablecoins but no ETH, SOL, TRX or HYPE, so every transfer fails with "insufficient funds
-for gas". With this server an agent can still send the stablecoins, or swap a few dollars into the gas coin:
-the wallet signs, gasrescue sends the transaction and pays the network fee, and its fees come out of the amount.
+The wallet holds USDC or USDT but no ETH, POL, SOL, TRX or HYPE, so every transfer fails with "insufficient
+funds for gas". With this server an agent can find out where the money is stuck, then still send the
+stablecoins, or swap a few dollars into the gas coin so the wallet works on its own again: the wallet signs,
+gasrescue sends the transaction and pays the network fee, and its fees come out of the amount.
 
-Chains: Base, Arbitrum, Ethereum, HyperEVM, Robinhood Chain, Solana, Tron.
-Tokens: USDC, USDT (USDT0), USDG, depending on the chain.
+Chains: Base, Arbitrum, Ethereum, Polygon, HyperEVM, Robinhood Chain, Solana, Tron.
+Tokens: USDC, USDC.e, USDT (USDT0 on Arbitrum, Polygon and HyperEVM), USDG, depending on the chain.
 
 Listed in the official MCP Registry as `io.github.gasrescue/gasrescue`.
 
@@ -19,7 +20,7 @@ Listed in the official MCP Registry as `io.github.gasrescue/gasrescue`.
 | `gasrescue_info` | Chains, tokens, fees and limits |
 | `check_wallet` | Read-only: stablecoins and gas of an address on every chain, issuer freezes included |
 | `quote_send` | Quote a send without gas; returns fees, what the recipient gets and a transfer id |
-| `quote_swap` | Quote a swap into the gas coin (ETH, SOL, HYPE) without gas |
+| `quote_swap` | Quote a swap into the gas coin (ETH, POL, SOL, HYPE) without gas |
 | `get_signing_request` | What the wallet has to sign for a quote |
 | `submit_signatures` | Submit the signatures; gasrescue sends and pays the gas |
 | `get_transfer` | Status and explorer link |
@@ -53,7 +54,8 @@ or to its own wallet tool, and submits the signatures.
 ```
 
 Before it signs, `sign_and_submit` checks every signed field against the quote: the wallet, the chain,
-the gasrescue contract, the amount, the fee and the recipient. Against gasrescue.io it signs only for the
+the gasrescue contract, the amount, the fee, the recipient and, on a swap, the minimum output. Tokens with
+only a permit (USDT0 and USDC.e on Polygon) take two signatures, a permit plus the order itself; both are checked. Against gasrescue.io it signs only for the
 published gasrescue contracts. With `GASRESCUE_ALLOWED_RECIPIENTS` set, sends go only to those addresses.
 The key stays in this process; only signatures are sent.
 
