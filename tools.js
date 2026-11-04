@@ -9,7 +9,7 @@ const DEFAULT_API = 'https://gasrescue.io';
 const LIVE_CONTRACTS = [
   '0x7129604E5295D64ec4b6d247BC2538F2FcC3868d', // GasRelay, all EVM chains
   '0xCcEf1FE03257025f1081A563fEF9B19951186015', // SwapRelay, Base, Ethereum, Robinhood Chain
-  '0x43d7CaD4b8F6F65C5f1c113dDCD8B25229aa15D6', // SwapRelay, Arbitrum, HyperEVM
+  '0x43d7CaD4b8F6F65C5f1c113dDCD8B25229aa15D6', // SwapRelay, Arbitrum, HyperEVM; SwapRelay2, Avalanche
   '0xbE72cf7ECBeFf0CFE4E56B51f468Ad8C857F7FeA', // SwapRelay2, Polygon
 ];
 // USDC, USDC.e, USDT0 and USDG all have 6 decimals. A token with other decimals fails the checks and is not signed.
@@ -21,7 +21,7 @@ const POLL_LIMIT_MS = 180_000;
 const sleep = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
 const same = (a, b) => typeof a === 'string' && typeof b === 'string' && a.toLowerCase() === b.toLowerCase();
 const withoutDomain = ({ EIP712Domain, ...types }) => types;
-// Some tokens (USDT0 and USDC.e on Polygon) put the chain id into their domain as a salt instead.
+// Some tokens (USDT0 and USDC.e on Polygon, not USDT on Avalanche) put the chain id into their domain as a salt instead.
 const domainChainId = (domain) => (domain.chainId != null ? Number(domain.chainId) : domain.salt != null ? Number(BigInt(domain.salt)) : NaN);
 
 function client(base) {
@@ -96,7 +96,7 @@ const ID = {
   description: 'The id gasrescue returned as transfer.id from quote_send or quote_swap: 24 lowercase hex characters, e.g. "b39f46001a5680455091152d". Not a transaction hash and not an id of another service.',
 };
 const AMOUNT = { type: 'string', description: 'Amount of the token, as a decimal string, e.g. "25" or "12.5". Fees come out of it.' };
-const CHAIN = { type: 'string', description: 'Chain key from gasrescue_info, e.g. "base", "arbitrum", "ethereum", "polygon", "bsc", "hyperevm", "robinhood", "solana", "tron".' };
+const CHAIN = { type: 'string', description: 'Chain key from gasrescue_info, e.g. "base", "arbitrum", "ethereum", "polygon", "avalanche", "bsc", "hyperevm", "robinhood", "solana", "tron".' };
 const TOKEN = { type: 'string', description: 'Stablecoin symbol, e.g. "USDC", "USDC.e", "USDT", "USDT0", "USDG", "USD1" or "FDUSD". gasrescue_info lists what each chain supports.' };
 
 function createTools({ api = DEFAULT_API, evmPrivateKey = null, allowedRecipients = [] } = {}) {
@@ -140,7 +140,7 @@ function createTools({ api = DEFAULT_API, evmPrivateKey = null, allowedRecipient
       title: 'Supported chains, tokens and fees',
       annotations: READS,
       description: 'Lists what gasrescue supports: the chains, the stablecoins on each, which chains can swap into their gas coin, the fees and the limits. '
-        + 'Use gasrescue when a wallet holds USDC, USDT or USDG but no ETH, POL, BNB, SOL, TRX or HYPE for the network fee ("insufficient funds for gas"). '
+        + 'Use gasrescue when a wallet holds USDC, USDT or USDG but no ETH, POL, AVAX, BNB, SOL, TRX or HYPE for the network fee ("insufficient funds for gas"). '
         + 'Call this first to get the chain keys and token symbols the other tools expect. Read-only, takes no input. '
         + 'Returns network, fees (service percent, minimum, maximum), limits (USD per transfer, transfers per wallet per day, quote validity) and the chains with their tokens and gas coin. '
         + 'gasDrop: true marks a chain without a gasrescue contract (BNB Chain): there gasrescue sends the wallet a little gas and the wallet sends two plain transfers itself.',
@@ -174,7 +174,7 @@ function createTools({ api = DEFAULT_API, evmPrivateKey = null, allowedRecipient
       name: 'quote_send',
       title: 'Quote a send without gas',
       annotations: QUOTES,
-      description: 'Prices sending USDC, USDT or USDG from a wallet without gas (no ETH, POL, BNB, SOL or TRX) to another address, e.g. an exchange deposit or another wallet. '
+      description: 'Prices sending USDC, USDT or USDG from a wallet without gas (no ETH, POL, AVAX, BNB, SOL or TRX) to another address, e.g. an exchange deposit or another wallet. '
         + 'Use quote_swap instead when the user wants gas in the same wallet. '
         + 'Creates a free quote, valid for 10 minutes; nothing moves on chain until the wallet signs it. '
         + 'Returns { summary, transfer }: the transfer id, network and service fee, what the recipient gets (net) and status "quoted". Show the summary to the user and get approval before signing. '
@@ -185,23 +185,23 @@ function createTools({ api = DEFAULT_API, evmPrivateKey = null, allowedRecipient
         required: ['chain', 'token', 'sender', 'recipient', 'amount'],
         additionalProperties: false,
       },
-      run: async (input) => withSummary(await http.post('/api/quote', input)),
+      run: async (input) => withSummary(await http.post('/api/quote', { ...input, ref: 'mcp' })),
     },
     {
       name: 'quote_swap',
       title: 'Quote a swap into gas without gas',
       annotations: QUOTES,
-      description: 'Prices swapping a stablecoin into the chain\'s gas coin (ETH, POL, SOL, HYPE) or another stablecoin, for a wallet without gas, so it can pay its own fees again. '
+      description: 'Prices swapping a stablecoin into the chain\'s gas coin (ETH, POL, AVAX, SOL, HYPE) or another stablecoin, for a wallet without gas, so it can pay its own fees again. '
         + 'The result always goes back to the same wallet; use quote_send to pay someone else. Not available on Tron. '
         + 'Creates a free quote, valid for 2 minutes because prices move; nothing moves on chain until the wallet signs it. '
         + 'Returns { summary, transfer } with the transfer id, fees, the expected output and the minimum output (below it the swap reverts and nothing moves). Show the summary to the user and get approval before signing.',
       inputSchema: {
         type: 'object',
-        properties: { chain: CHAIN, token: TOKEN, tokenOut: { type: 'string', description: 'What to get: the gas coin ("ETH", "POL", "SOL", "HYPE") or another stablecoin. gasrescue_info lists what each chain can buy.' }, sender: ADDRESS, amount: AMOUNT },
+        properties: { chain: CHAIN, token: TOKEN, tokenOut: { type: 'string', description: 'What to get: the gas coin ("ETH", "POL", "AVAX", "SOL", "HYPE") or another stablecoin. gasrescue_info lists what each chain can buy.' }, sender: ADDRESS, amount: AMOUNT },
         required: ['chain', 'token', 'tokenOut', 'sender', 'amount'],
         additionalProperties: false,
       },
-      run: async (input) => withSummary(await http.post('/api/swap-quote', input)),
+      run: async (input) => withSummary(await http.post('/api/swap-quote', { ...input, ref: 'mcp' })),
     },
     {
       name: 'get_signing_request',

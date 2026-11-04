@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.9
+- Avalanche C-Chain: USDC and USDT (USDt), sends and swaps into AVAX. USDT there has only a permit: two signatures, a permit plus the order.
+- quote_send and quote_swap tag their quotes with the source "mcp", so gasrescue can count how many come from agents. No addresses or keys are added.
+
 ## 0.1.8
 - BNB Chain: USDT, USDC, USD1 and FDUSD. These tokens have no signed transfers, so there is no contract: gasrescue sends the wallet a little BNB (submit_signatures with fund: true), the wallet sends the fee and the transfer itself, and submit_signatures reports their hashes (txs).
 - get_signing_request explains the new kind "evm-transactions"; gasrescue_info marks such chains with gasDrop.
