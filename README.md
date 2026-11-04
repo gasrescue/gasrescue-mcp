@@ -3,13 +3,13 @@
 Rescues stablecoins from wallets that have no gas, for AI agents, through [gasrescue.io](https://gasrescue.io).
 EVM chains, Solana and Tron in one server, no API key and no account.
 
-The wallet holds USDC or USDT but no ETH, POL, SOL, TRX or HYPE, so every transfer fails with "insufficient
+The wallet holds USDC or USDT but no ETH, POL, BNB, SOL, TRX or HYPE, so every transfer fails with "insufficient
 funds for gas". With this server an agent can find out where the money is stuck, then still send the
 stablecoins, or swap a few dollars into the gas coin so the wallet works on its own again: the wallet signs,
 gasrescue sends the transaction and pays the network fee, and its fees come out of the amount.
 
-Chains: Base, Arbitrum, Ethereum, Polygon, HyperEVM, Robinhood Chain, Solana, Tron.
-Tokens: USDC, USDC.e, USDT (USDT0 on Arbitrum, Polygon and HyperEVM), USDG, depending on the chain.
+Chains: Base, Arbitrum, Ethereum, Polygon, BNB Chain, HyperEVM, Robinhood Chain, Solana, Tron.
+Tokens: USDC, USDC.e, USDT (USDT0 on Arbitrum, Polygon and HyperEVM), USDG, USD1, FDUSD, depending on the chain.
 
 Listed in the official MCP Registry as `io.github.gasrescue/gasrescue`.
 
@@ -43,6 +43,11 @@ Claude Desktop, Cursor and other MCP clients:
 
 Without a key the server never signs anything. The agent hands the signing request to the user's wallet,
 or to its own wallet tool, and submits the signatures.
+
+BNB Chain works without a contract, because USDT and USDC there have no signed transfers. The signing
+request has kind `evm-transactions`: call `submit_signatures` with `fund: true` and gasrescue sends the
+wallet a little BNB, then the wallet sends the two listed transfers itself (fee first) and the agent
+reports their hashes with `submit_signatures` and `txs: { fee, transfer }`.
 
 ### Letting the agent sign (EVM only)
 

@@ -48,6 +48,7 @@ function summary(transfer) {
 // Throws unless every signature in the request does exactly what the quote says.
 function verifyEvm({ transfer, request, account, contracts }) {
   const fail = (why) => { throw new Error(`Refused to sign: ${why}.`); };
+  if (request && request.kind === 'evm-transactions') fail('on this chain the wallet sends two plain transfers itself (gas drop); use get_signing_request and submit_signatures');
   if (transfer.kind !== 'evm' || !request || request.kind !== 'evm-typed-data') fail('this is not an EVM quote');
   if (transfer.status !== 'quoted') fail(`the transfer is ${transfer.status}`);
   if (!same(transfer.sender, account)) fail('the quote is for another wallet');
@@ -95,8 +96,8 @@ const ID = {
   description: 'The id gasrescue returned as transfer.id from quote_send or quote_swap: 24 lowercase hex characters, e.g. "b39f46001a5680455091152d". Not a transaction hash and not an id of another service.',
 };
 const AMOUNT = { type: 'string', description: 'Amount of the token, as a decimal string, e.g. "25" or "12.5". Fees come out of it.' };
-const CHAIN = { type: 'string', description: 'Chain key from gasrescue_info, e.g. "base", "arbitrum", "ethereum", "polygon", "hyperevm", "robinhood", "solana", "tron".' };
-const TOKEN = { type: 'string', description: 'Stablecoin symbol, e.g. "USDC", "USDC.e", "USDT", "USDT0" or "USDG". gasrescue_info lists what each chain supports.' };
+const CHAIN = { type: 'string', description: 'Chain key from gasrescue_info, e.g. "base", "arbitrum", "ethereum", "polygon", "bsc", "hyperevm", "robinhood", "solana", "tron".' };
+const TOKEN = { type: 'string', description: 'Stablecoin symbol, e.g. "USDC", "USDC.e", "USDT", "USDT0", "USDG", "USD1" or "FDUSD". gasrescue_info lists what each chain supports.' };
 
 function createTools({ api = DEFAULT_API, evmPrivateKey = null, allowedRecipients = [] } = {}) {
   const http = client(api.replace(/\/+$/, ''));
@@ -139,9 +140,10 @@ function createTools({ api = DEFAULT_API, evmPrivateKey = null, allowedRecipient
       title: 'Supported chains, tokens and fees',
       annotations: READS,
       description: 'Lists what gasrescue supports: the chains, the stablecoins on each, which chains can swap into their gas coin, the fees and the limits. '
-        + 'Use gasrescue when a wallet holds USDC, USDT or USDG but no ETH, POL, SOL, TRX or HYPE for the network fee ("insufficient funds for gas"). '
+        + 'Use gasrescue when a wallet holds USDC, USDT or USDG but no ETH, POL, BNB, SOL, TRX or HYPE for the network fee ("insufficient funds for gas"). '
         + 'Call this first to get the chain keys and token symbols the other tools expect. Read-only, takes no input. '
-        + 'Returns network, fees (service percent, minimum, maximum), limits (USD per transfer, transfers per wallet per day, quote validity) and the chains with their tokens and gas coin.',
+        + 'Returns network, fees (service percent, minimum, maximum), limits (USD per transfer, transfers per wallet per day, quote validity) and the chains with their tokens and gas coin. '
+        + 'gasDrop: true marks a chain without a gasrescue contract (BNB Chain): there gasrescue sends the wallet a little gas and the wallet sends two plain transfers itself.',
       inputSchema: { type: 'object', properties: {}, additionalProperties: false },
       run: async () => {
         const config = await http.get('/api/config');
@@ -151,7 +153,7 @@ function createTools({ api = DEFAULT_API, evmPrivateKey = null, allowedRecipient
           limits: config.limits,
           swapSlippagePercent: config.swapSlippagePercent,
           chains: config.chains.map((chain) => ({
-            key: chain.key, label: chain.label, kind: chain.kind, gasCoin: chain.native, tokens: chain.tokens, swap: chain.swap ? { sell: chain.swap.tokens, buy: chain.swap.out } : null, contract: chain.contract,
+            key: chain.key, label: chain.label, kind: chain.kind, gasDrop: Boolean(chain.gasDrop), gasCoin: chain.native, tokens: chain.tokens, swap: chain.swap ? { sell: chain.swap.tokens, buy: chain.swap.out } : null, contract: chain.contract,
           })),
           signsLocally: signer ? { evmAddress: signer.address } : null,
         };
@@ -172,7 +174,7 @@ function createTools({ api = DEFAULT_API, evmPrivateKey = null, allowedRecipient
       name: 'quote_send',
       title: 'Quote a send without gas',
       annotations: QUOTES,
-      description: 'Prices sending USDC, USDT or USDG from a wallet without gas (no ETH, POL, SOL or TRX) to another address, e.g. an exchange deposit or another wallet. '
+      description: 'Prices sending USDC, USDT or USDG from a wallet without gas (no ETH, POL, BNB, SOL or TRX) to another address, e.g. an exchange deposit or another wallet. '
         + 'Use quote_swap instead when the user wants gas in the same wallet. '
         + 'Creates a free quote, valid for 10 minutes; nothing moves on chain until the wallet signs it. '
         + 'Returns { summary, transfer }: the transfer id, network and service fee, what the recipient gets (net) and status "quoted". Show the summary to the user and get approval before signing. '
@@ -208,6 +210,7 @@ function createTools({ api = DEFAULT_API, evmPrivateKey = null, allowedRecipient
       description: 'Returns what the sender\'s wallet has to sign for a quote from quote_send or quote_swap. '
         + 'kind "evm-typed-data": sign every steps[].typedData with eth_signTypedData_v4, in order (one authorization, or for permit tokens a permit plus the order itself); binding is the order the authorization commits to, so recipient, fee and minimum can be checked first. '
         + 'kind "tron-transactions": sign every steps[].transaction (first the fee, then the transfer). '
+        + 'kind "evm-transactions" (gas drop, BNB Chain): if funding.needed, call submit_signatures with fund: true first, so gasrescue sends the wallet the gas; then send every steps[].tx from the wallet (eth_sendTransaction, fee first) and report the hashes with submit_signatures txs: { fee, transfer }. '
         + 'kind "solana-transaction" or "solana-versioned-transaction": sign the base64 transaction. '
         + 'Read-only. Pass the result to submit_signatures. Fails when the quote expired; then request a new quote.',
       inputSchema: { type: 'object', properties: { transferId: ID }, required: ['transferId'], additionalProperties: false },
@@ -219,7 +222,7 @@ function createTools({ api = DEFAULT_API, evmPrivateKey = null, allowedRecipient
       annotations: MOVES_FUNDS,
       description: 'Submits the wallet\'s signatures for a quote; gasrescue broadcasts the transaction, pays the gas and waits up to 3 minutes for the result. '
         + 'This moves funds and cannot be undone: call it only after the user approved the quote summary. A transfer can be submitted once; a second call is refused. '
-        + 'Give signatures for EVM and Tron, or signedTransaction for Solana. '
+        + 'Give signatures for EVM and Tron, signedTransaction for Solana, or for a gas drop fund: true and then txs. '
         + 'Returns { summary, transfer } with status confirmed or failed, the transaction hash and the explorer link.',
       inputSchema: {
         type: 'object',
@@ -227,11 +230,20 @@ function createTools({ api = DEFAULT_API, evmPrivateKey = null, allowedRecipient
           transferId: ID,
           signatures: { type: 'array', items: { type: 'string' }, description: 'EVM and Tron: one signature per step of get_signing_request, in the same order, as hex strings.' },
           signedTransaction: { type: 'string', description: 'Solana only: the transaction from get_signing_request, signed by the sender, base64.' },
+          fund: { type: 'boolean', description: 'Gas drop (kind "evm-transactions") only: true asks gasrescue to send the wallet the gas for its two transfers. Returns status funded.' },
+          txs: {
+            type: 'object',
+            properties: { fee: { type: 'string' }, transfer: { type: 'string' } },
+            additionalProperties: false,
+            description: 'Gas drop only: the hashes of the transactions the wallet sent, { fee, transfer }. gasrescue checks them on chain; the transfer closes the quote.',
+          },
         },
         required: ['transferId'],
         additionalProperties: false,
       },
-      run: async ({ transferId, signatures, signedTransaction }) => {
+      run: async ({ transferId, signatures, signedTransaction, fund, txs }) => {
+        // A gas drop answers right away: after the gas the wallet still has to send its transfers.
+        if (fund || txs) return withSummary(await http.post(`/api/transfers/${idOf(transferId)}/submit`, fund ? { fund: true } : { txs }));
         const payload = signedTransaction ? { signedTransaction } : { signatures };
         await http.post(`/api/transfers/${idOf(transferId)}/submit`, payload);
         return withSummary(await waitForResult(transferId));

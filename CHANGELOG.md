@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.8
+- BNB Chain: USDT, USDC, USD1 and FDUSD. These tokens have no signed transfers, so there is no contract: gasrescue sends the wallet a little BNB (submit_signatures with fund: true), the wallet sends the fee and the transfer itself, and submit_signatures reports their hashes (txs).
+- get_signing_request explains the new kind "evm-transactions"; gasrescue_info marks such chains with gasDrop.
+- sign_and_submit refuses gas-drop quotes with a clear reason instead of a generic one.
+
 ## 0.1.7
 - Polygon: USDC, USDT0 and USDC.e, sends and swaps into POL.
 - Signs permit tokens (a permit plus the order) and token domains that carry the chain id as a salt.
