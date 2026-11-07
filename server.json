@@ -3,17 +3,17 @@
   "name": "io.github.gasrescue/gasrescue",
   "title": "gasrescue",
   "description": "Rescue USDC, USDT and USDG from wallets with no gas: send or swap them on EVM, Solana and Tron.",
-  "websiteUrl": "https://gasrescue.io/agents",
+  "websiteUrl": "https://gasrescue.io/agents?ref=mcp-registry",
   "repository": {
     "url": "https://github.com/gasrescue/gasrescue-mcp",
     "source": "github"
   },
-  "version": "0.1.9",
+  "version": "0.1.11",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "gasrescue-mcp",
-      "version": "0.1.9",
+      "version": "0.1.11",
       "transport": {
         "type": "stdio"
       },

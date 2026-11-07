@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.11
+- BNB Chain gas drop: gasrescue now sends gas only to a wallet that proved it is the sender's. The wallet signs `funding.message` from get_signing_request with personal_sign (plain text, no transaction, no gas), and submit_signatures passes it as `fundSignature` together with `fund: true`. Older versions get "Please confirm in your wallet that this is your wallet before gas is sent." on BNB Chain.
+
+## 0.1.10
+- Links to gasrescue.io in the package, the README, the bundle manifest and the registry entry carry a source tag (`?ref=npm`, `mcp-readme`, `mcpb`, `mcp-registry`), so gasrescue can count visits from each listing. No cookies, nothing about the user.
+- check_wallet tags its checks with the source "mcp", like the quotes, so gasrescue can count how many wallet checks come from agents. Nothing about the wallet is stored.
+
 ## 0.1.9
 - Avalanche C-Chain: USDC and USDT (USDt), sends and swaps into AVAX. USDT there has only a permit: two signatures, a permit plus the order.
 - quote_send and quote_swap tag their quotes with the source "mcp", so gasrescue can count how many come from agents. No addresses or keys are added.
