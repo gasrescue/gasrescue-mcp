@@ -1,5 +1,7 @@
 # gasrescue MCP server
 
+[![gasrescue MCP server – quality and maintenance score on Glama](https://glama.ai/mcp/servers/gasrescue/gasrescue-mcp/badges/card.svg)](https://glama.ai/mcp/servers/gasrescue/gasrescue-mcp)
+
 Rescues stablecoins from wallets that have no gas, for AI agents, through [gasrescue.io](https://gasrescue.io/?ref=mcp-readme).
 EVM chains, Solana and Tron in one server, no API key and no account.
 
