@@ -4,6 +4,8 @@
 //   GASRESCUE_API                 default https://gasrescue.io
 //   GASRESCUE_EVM_PRIVATE_KEY     optional: lets sign_and_submit sign EVM quotes with this wallet
 //   GASRESCUE_ALLOWED_RECIPIENTS  optional, comma separated: sign_and_submit sends only to these
+//   GASRESCUE_TRUST_CUSTOM_API    1 lets sign_and_submit sign against an API other than gasrescue.io, trusting
+//                                 the contracts that API publishes; only for your own test server
 const readline = require('readline');
 const { createTools, DEFAULT_API } = require('./tools');
 const { version } = require('./package.json');
@@ -17,6 +19,7 @@ const tools = createTools({
   api: process.env.GASRESCUE_API || DEFAULT_API,
   evmPrivateKey: process.env.GASRESCUE_EVM_PRIVATE_KEY || null,
   allowedRecipients: (process.env.GASRESCUE_ALLOWED_RECIPIENTS || '').split(','),
+  trustCustomApi: process.env.GASRESCUE_TRUST_CUSTOM_API === '1',
 });
 const byName = new Map(tools.map((tool) => [tool.name, tool]));
 

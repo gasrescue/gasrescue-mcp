@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.12
+Security fix for installations that set `GASRESCUE_EVM_PRIVATE_KEY`. Without a key nothing changes. Please update.
+
+A changed or compromised API answer could make `sign_and_submit` sign more than the user approved. Now:
+- It reads the signing request once and checks exactly that answer. Before, the allowed-recipients check read a different answer than the one that was signed, so `GASRESCUE_ALLOWED_RECIPIENTS` could be bypassed.
+- It signs only a quote made with quote_send or quote_swap in the same session, and only while the request still matches it: wallet, recipient, chain, token, amount, fee, swap output and minimum output. Before, it compared the request only with the API's own description of it.
+- quote_send and quote_swap refuse a quote that does not match what was asked for.
+- It checks the token: in the order and in the permit or authorization, against the published token address of the chain.
+- It checks the contract per chain and swap or send, the exact typed-data layout, the number and kind of signatures, and that every signature expires within an hour.
+- Against an API other than `https://gasrescue.io` it signs nothing unless `GASRESCUE_TRUST_CUSTOM_API=1` is set. Before, any other URL (including `http://` or `www.`) made it trust the contracts that server published.
+
 ## 0.1.11
 - BNB Chain gas drop: gasrescue now sends gas only to a wallet that proved it is the sender's. The wallet signs `funding.message` from get_signing_request with personal_sign (plain text, no transaction, no gas), and submit_signatures passes it as `fundSignature` together with `fund: true`. Older versions get "Please confirm in your wallet that this is your wallet before gas is sent." on BNB Chain.
 

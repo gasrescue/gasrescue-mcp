@@ -1,6 +1,6 @@
 {
   "name": "gasrescue-mcp",
-  "version": "0.1.11",
+  "version": "0.1.12",
   "description": "MCP server that rescues USDC, USDT and USDG from wallets with no gas: send them with no ETH, POL, AVAX, BNB, SOL or TRX, or swap them into gas, on Base, Arbitrum, Ethereum, Polygon, Avalanche, BNB Chain, HyperEVM, Robinhood Chain, Solana and Tron.",
   "license": "MIT",
   "homepage": "https://gasrescue.io/agents?ref=npm",
@@ -51,7 +51,7 @@
   },
   "main": "tools.js",
   "scripts": {
-    "test": "node test.js"
+    "test": "node test.js && node test-sign.js"
   },
   "files": [
     "server.js",

@@ -61,11 +61,17 @@ reports their hashes with `submit_signatures` and `txs: { fee, transfer }`.
 }
 ```
 
-Before it signs, `sign_and_submit` checks every signed field against the quote: the wallet, the chain,
-the gasrescue contract, the amount, the fee, the recipient and, on a swap, the minimum output. Tokens with
-only a permit (USDT0 and USDC.e on Polygon, USDT on Avalanche) take two signatures, a permit plus the order itself; both are checked. Against gasrescue.io it signs only for the
-published gasrescue contracts. With `GASRESCUE_ALLOWED_RECIPIENTS` set, sends go only to those addresses.
-The key stays in this process; only signatures are sent.
+`sign_and_submit` does not trust the API's answers. It signs only a quote made with `quote_send` or
+`quote_swap` in the same session, and only while the signing request is still exactly that quote: the
+wallet, the recipient, the chain, the token, the amount, the fee and, on a swap, the output and the minimum
+output. It signs only for the published gasrescue contract and token of that chain, only the typed-data
+layouts the contracts use, and only signatures that expire within an hour. Tokens with only a permit
+(USDT0 and USDC.e on Polygon, USDT on Avalanche) take two signatures, a permit plus the order itself; both
+are checked. With `GASRESCUE_ALLOWED_RECIPIENTS` set, sends go only to those addresses. The key stays in
+this process; only signatures are sent.
+
+`sign_and_submit` signs only against `https://gasrescue.io`. For your own test server set
+`GASRESCUE_API` and `GASRESCUE_TRUST_CUSTOM_API=1`; it then trusts the contracts that server publishes.
 
 Use a wallet that holds only what the agent should be able to move. Transfers on a blockchain are final.
 
